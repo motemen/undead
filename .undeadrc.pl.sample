@@ -1,0 +1,8 @@
+{
+    pattern => {
+        stderr => [
+            qr/^PhantomJS has crashed\./,
+        ]
+    },
+    count => 20,
+};

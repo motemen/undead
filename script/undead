@@ -1,0 +1,91 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use v5.14;
+use IPC::Run qw(run);
+use List::MoreUtils qw(any);
+use File::Basename;
+
+my $n;
+
+if ($ARGV[0] && $ARGV[0] eq '-n') {
+    (undef, $n) = splice @ARGV, 0, 2;
+}
+
+shift if $ARGV[0] eq '--';
+
+my $exe = basename $0;
+$exe =~ s/^undead// or undef $exe;
+
+my @command = @ARGV or die 'command args required';
+my $config = do '.undeadrc.pl' or die 'Cannot load .undeadrc.pl';
+
+$n //= $config->{count};
+
+my $out = '';
+my $err = '';
+
+run(
+    ($exe ? [ $exe, @command ] : [ @command ]),
+    \*STDIN,
+    \$out,
+    \$err
+);
+
+my @out = split /(?=.*\n)/, $out;
+my @err = split /(?=.*\n)/, $err;
+
+my $exit_code = $? >> 8;
+
+if ($exit_code != 0 && $n > 0) {
+    # This was a failure exit and retry count remains > 0
+
+    my $retry = 0;
+    $retry ||= any { $_ ~~ $config->{pattern}->{stderr} } @err;
+    $retry ||= any { $_ ~~ $config->{pattern}->{stdout} } @out;
+
+    if ($retry) {
+        print STDERR "# [undead] err - $_" for @err;
+        print STDERR "# [undead] out - $_" for @out;
+        print STDERR "# [undead] Retry '@command' (", $n-1, " remains)\n";
+
+        exec $^X, $0, '-n' => $n-1, @command;
+    }
+}
+
+# It was a normal exit, or no more retry remained, or no retry condition matched
+print STDERR for @err;
+print STDOUT for @out;
+
+exit $exit_code;
+
+__END__
+
+=head1 NAME
+
+undead
+
+=head1 DESCRIPTION
+
+C<< undead >> runs a command and re-runs it on occasional, uncontrollable failure exits.
+
+=head1 SYNOPSIS
+
+  undead [-n <retry count>] command args...
+
+Rename/symlink C<< undead >> to undeadI<< prog >>, to invoke I<< prog >> implicitly. eg.
+
+  undeadperl mayfail.pl
+
+=head1 CONFIGURATION
+
+Place .undeadrc.pl in $PWD with content for example:
+
+  {
+      pattern => {
+          stderr => [
+              qr/^PhantomJS has crashed\./,
+          ]
+      },
+      count => 20,
+  };
