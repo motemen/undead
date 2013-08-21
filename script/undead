@@ -20,7 +20,7 @@ $exe =~ s/^undead// or undef $exe;
 my @command = @ARGV or die 'command args required';
 my $config = do '.undeadrc.pl' or die 'Cannot load .undeadrc.pl';
 
-$n //= $config->{count};
+$n = $config->{count} unless defined $n;
 
 my $out = '';
 my $err = '';
