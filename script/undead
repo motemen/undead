@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use v5.14;
 use IPC::Run qw(run);
 use List::MoreUtils qw(any);
 use File::Basename;
@@ -20,7 +19,7 @@ $exe =~ s/^undead// or undef $exe;
 my @command = @ARGV or die 'command args required';
 my $config = do '.undeadrc.pl' or die 'Cannot load .undeadrc.pl';
 
-$n //= $config->{count};
+$n = $config->{count} unless defined $n;
 
 my $out = '';
 my $err = '';
@@ -32,8 +31,8 @@ run(
     \$err
 );
 
-my @out = split /(?=.*\n)/, $out;
-my @err = split /(?=.*\n)/, $err;
+my @out = $out =~ /(.+)/gm;
+my @err = $err =~ /(.+)/gm;
 
 my $exit_code = $? >> 8;
 
@@ -41,8 +40,8 @@ if ($exit_code != 0 && $n > 0) {
     # This was a failure exit and retry count remains > 0
 
     my $retry = 0;
-    $retry ||= any { $_ ~~ $config->{pattern}->{stderr} } @err;
-    $retry ||= any { $_ ~~ $config->{pattern}->{stdout} } @out;
+    $retry ||= any { match($_, $config->{pattern}->{stderr}) } @err;
+    $retry ||= any { match($_, $config->{pattern}->{stdout}) } @out;
 
     if ($retry) {
         print STDERR "# [undead] err - $_" for @err;
@@ -58,6 +57,17 @@ print STDERR for @err;
 print STDOUT for @out;
 
 exit $exit_code;
+
+sub match ($$) {
+    my ($in, $pattern) = @_;
+
+    if (ref $pattern eq 'ARRAY') {
+        return any { match($in, $_) } @$pattern;
+    } else {
+        $pattern = qr/^\Q$pattern\E$/ unless ref $pattern;
+        return $in =~ m/$pattern/;
+    }
+}
 
 __END__
 
