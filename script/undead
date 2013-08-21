@@ -31,8 +31,8 @@ run(
     \$err
 );
 
-my @out = $out =~ /(.+)/gm;
-my @err = $err =~ /(.+)/gm;
+my @out = do { open my $fh, '<', \$out; <$fh> };
+my @err = do { open my $fh, '<', \$err; <$fh> };
 
 my $exit_code = $? >> 8;
 
