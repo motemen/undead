@@ -31,8 +31,8 @@ run(
     \$err
 );
 
-my @out = split /(?=.*\n)/, $out;
-my @err = split /(?=.*\n)/, $err;
+my @out = $out =~ /(.+)/gm;
+my @err = $err =~ /(.+)/gm;
 
 my $exit_code = $? >> 8;
 
