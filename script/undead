@@ -1,7 +1,6 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use v5.14;
 use IPC::Run qw(run);
 use List::MoreUtils qw(any);
 use File::Basename;
